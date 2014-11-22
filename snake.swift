@@ -213,8 +213,6 @@ func play(board: Board, countdown: Double) -> Board {
      }
   }()
 
-  // hope for TCO, or a stack bigger than 
-  // the longest possible snake
   return board.advanceSnake(direction)
 }
 
