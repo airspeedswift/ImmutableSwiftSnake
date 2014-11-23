@@ -81,9 +81,10 @@ extension Snake {
     return Snake(tail: [to] + tail)
   }
   
-  func wriggle(to: Coord) -> Snake {
-    return Snake(tail: [to] + dropLast(tail))
-  }
+    func wriggle(to: Coord) -> Snake {
+        let shrunkTail = tail.isEmpty ? [] : dropLast(tail)
+        return Snake(tail: [to] + shrunkTail)
+    }
 }
 
 
