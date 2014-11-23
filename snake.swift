@@ -1,3 +1,5 @@
+// TODO: Add command-line params for all the things
+
 import Darwin
 
 struct Coord {
@@ -8,9 +10,9 @@ struct Coord {
 // ah for TupleLiteralConvertible
 extension Coord: ArrayLiteralConvertible {
     init(arrayLiteral elements: Int...) {
-        assert(elements.count == 2)
-        x = elements.first!
-        y = elements.last!
+        precondition(elements.count == 2)
+        x = elements[0]
+        y = elements[1]
     }
 }
 
@@ -127,8 +129,8 @@ extension Board: Printable {
           }          
         }
         
-        let squares = map(0..<self.size) { (y: Int) -> String in
-            let line = map(0..<self.size) { (x: Int) -> Character in
+        let squares = map(0..<self.size) { (y) -> String in
+            let line = map(0..<self.size) { (x) -> Character in
                 return fillSquare([x,y])
             }
             return "|\(String(line))|"
@@ -140,15 +142,12 @@ extension Board: Printable {
 }
 
 extension Board {
-    func wallCrash() -> Bool {
+    var wallCrash: Bool {
         return !(0..<size).contains(headLocation.x) || !(0..<size).contains(headLocation.y)
     }
     
-    func tailCrash() -> Bool {
-        let locations = snake.locationsFrom(headLocation)
-        return contains(dropFirst(locations)) { (segment: Coord)->Bool in
-            segment == self.headLocation
-        }
+    var tailCrash: Bool {
+        return contains(dropFirst(snakeLocations),headLocation)
     }
 }
 
@@ -192,17 +191,17 @@ func getChar(timeout: Double) -> Character {
 
 func play(board: Board, countdown: Double) -> Board {
   
-  if board.wallCrash() {
+  if board.wallCrash {
     println("Wall crash!")
     exit(0)
   }
   
-  if board.tailCrash() {
+  if board.tailCrash {
     println("Tail crash!")
     exit(0)
   }
 
-  println(board.description)
+  println(board)
   
   let direction = { ()->Direction in
     // switches need to be expressions!
@@ -219,14 +218,11 @@ func play(board: Board, countdown: Double) -> Board {
 let snake = Snake(tail: [[1,0],[1,0]])
 let board = Board(snake: snake, 
               headLocation: [2,2], 
-              orientation: .Right, 
-              appleLocation: [4,4], 
-              size: 15)
+              orientation: .Right)
 
-// this stride represents the starting difficulty and rampup
-let countdown = stride(from: 500.0, through: 0.0, by: -0.25) 
+// this stride represents the starting difficulty and ramp-up
+let countdown = stride(from: 700.0, through: 0.0, by: -0.5) 
 
 println("A to turn right, S to turn left")
-reduce(countdown, board, play)
 
-// TODO: Add command-line params for all the things
+reduce(countdown, board, play)
