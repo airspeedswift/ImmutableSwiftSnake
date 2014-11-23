@@ -223,6 +223,6 @@ let board = Board(snake: snake,
 // this stride represents the starting difficulty and ramp-up
 let countdown = stride(from: 700.0, through: 0.0, by: -0.5) 
 
-println("A to turn right, S to turn left")
+println("A to turn left, S to turn right")
 
 reduce(countdown, board, play)
