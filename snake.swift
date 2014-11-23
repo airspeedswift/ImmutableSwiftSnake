@@ -7,7 +7,7 @@ struct Coord {
     let y: Int
 }
 
-// ah for TupleLiteralConvertible
+// ah, for TupleLiteralConvertible
 extension Coord: ArrayLiteralConvertible {
     init(arrayLiteral elements: Int...) {
         precondition(elements.count == 2)
@@ -76,22 +76,33 @@ extension Snake {
     }
 }
 
+extension Snake {
+  func grow(to: Coord) -> Snake {
+    return Snake(tail: [to] + tail)
+  }
+  
+  func wriggle(to: Coord) -> Snake {
+    return Snake(tail: [to] + dropLast(tail))
+  }
+}
+
+
 public struct Board {
     let snake: Snake
     let headLocation: Coord
     let orientation: Orientation
     let appleLocation: Coord
-    let size: Int
+    let size: Coord
     
     var snakeLocations: [Coord] { 
       return snake.locationsFrom(headLocation) 
     }
     
-    init(snake: Snake, headLocation: Coord, orientation: Orientation, appleLocation: Coord? = nil, size: Int = 15) {
+    init(snake: Snake, headLocation: Coord, orientation: Orientation, appleLocation: Coord? = nil, size: Coord = [25,15]) {
       self.snake = snake
       self.headLocation = headLocation
       self.orientation = orientation
-      self.appleLocation =  appleLocation ?? [Int(arc4random()) % size, Int(arc4random()) % size]
+      self.appleLocation =  appleLocation ?? [Int(arc4random()) % size.x, Int(arc4random()) % size.y]
       self.size = size
     }
 }
@@ -102,19 +113,20 @@ extension Board {
         let newLocation = headLocation + delta
         
         // grow the snake if it ate the apple
-        let newTail = [delta] + (appleLocation == newLocation ? snake.tail : Array(dropLast(snake.tail)))
-        let newSnake = Snake(tail: newTail)
-        
+        let newSnake = 
+          appleLocation == newLocation 
+            ? snake.grow(delta) 
+            : snake.wriggle(delta)
+
         let newAppleLocation: Coord? =
-        newLocation == appleLocation
+          newLocation == appleLocation
             ? nil
             : appleLocation
         
         return Board(snake: newSnake,
             headLocation: newLocation,
             orientation: newOrientation,
-            appleLocation: newAppleLocation,
-            size: size)
+            appleLocation: newAppleLocation)
     }
 }
 
@@ -129,21 +141,21 @@ extension Board: Printable {
           }          
         }
         
-        let squares = map(0..<self.size) { (y) -> String in
-            let line = map(0..<self.size) { (x) -> Character in
+        let squares = map(0..<self.size.y) { (y) -> String in
+            let line = map(0..<self.size.x) { (x) -> Character in
                 return fillSquare([x,y])
             }
             return "|\(String(line))|"
         }
         
-        let header = ["+" + String(Array(count: self.size, repeatedValue: "-")) + "+"]
+        let header = ["+" + String(Array(count: self.size.x, repeatedValue: "-")) + "+"]
         return "\n".join(header + squares + header)
     }
 }
 
 extension Board {
     var wallCrash: Bool {
-        return !(0..<size).contains(headLocation.x) || !(0..<size).contains(headLocation.y)
+        return !(0..<size.x).contains(headLocation.x) || !(0..<size.y).contains(headLocation.y)
     }
     
     var tailCrash: Bool {
