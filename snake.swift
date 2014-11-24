@@ -64,19 +64,6 @@ public struct Snake {
 }
 
 extension Snake {
-    func locationsFrom(head: Coord) -> [Coord] {
-        return reduce(self.tail, [head]) { (snake, segment) in
-            if let previous = snake.last {
-                return snake + [previous - segment]
-            }
-            else {
-                return snake
-            }
-        }
-    }
-}
-
-extension Snake {
   func grow(to: Coord) -> Snake {
     return Snake(tail: [to] + tail)
   }
@@ -96,7 +83,9 @@ public struct Board {
     let size: Coord
     
     var snakeLocations: [Coord] { 
-      return snake.locationsFrom(headLocation) 
+      return reduce(snake.tail, [headLocation]) { (snake, segment) in
+          return snake + [snake.last! - segment]
+      }
     }
     
     init(snake: Snake, headLocation: Coord, orientation: Orientation, appleLocation: Coord? = nil, size: Coord = [25,15]) {
