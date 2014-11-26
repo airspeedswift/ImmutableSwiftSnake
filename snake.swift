@@ -83,6 +83,7 @@ public struct Board {
     let size: Coord
     
     var snakeLocations: [Coord] { 
+      // recomputing this every time is horribly ineffecient
       return reduce(snake.tail, [headLocation]) { (snake, segment) in
           return snake + [snake.last! - segment]
       }
