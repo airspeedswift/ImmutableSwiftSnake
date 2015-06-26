@@ -1,4 +1,4 @@
-// TODO: Add command-line params for all the things
+// RUN ME IN A TERMINAL WINDOW
 
 import Darwin
 
@@ -31,7 +31,7 @@ func ==(lhs: Coord, rhs: Coord)->Bool {
 }
 
 func ~=(pattern: [Coord], value: Coord) -> Bool {
-    return contains(pattern,value)
+    return pattern.contains(value)
 }
 
 enum Direction {
@@ -42,7 +42,7 @@ enum Orientation {
     case Up, Down, Left, Right
 }
 
-func move(o: Orientation, d: Direction) -> (Coord,Orientation) {
+func move(o: Orientation, _ d: Direction) -> (Coord,Orientation) {
     switch (o,d) {
     case (.Up, .Forward):     return ([ 0,-1],.Up)
     case (.Up, .Left):        return ([-1, 0],.Left)
@@ -84,7 +84,7 @@ public struct Board {
     
     var snakeLocations: [Coord] {
         // recomputing this every time is horribly ineffecient
-        return reduce(snake.tail, [headLocation]) { (snake, segment) in
+        return snake.tail.reduce([headLocation]) { (snake, segment) in
             return snake + [snake.last! - segment]
         }
     }
@@ -121,7 +121,7 @@ extension Board {
     }
 }
 
-extension Board: Printable {
+extension Board: CustomStringConvertible {
     public var description: String {
         let snakeLocations = self.snakeLocations
         let fillSquare = { (square: Coord) -> Character in
@@ -132,8 +132,8 @@ extension Board: Printable {
             }
         }
         
-        let squares: [String] = map(0..<self.size.y) { y in
-            let line = map(0..<self.size.x) { x in
+        let squares: [String] = (0..<self.size.y).map { y in
+            let line = (0..<self.size.x).map { x in
                 fillSquare([x,y])
             }
             return "|\(String(line))|"
@@ -152,7 +152,7 @@ extension Board {
     }
     
     var tailCrash: Bool {
-        return contains(dropFirst(snakeLocations),headLocation)
+        return dropFirst(snakeLocations).contains(headLocation)
     }
 }
 
@@ -183,7 +183,7 @@ func getChar(timeout: Double) -> Character {
     tcsetattr( STDIN_FILENO, TCSANOW, &newt)
     
     var buffer = [0]
-    let n = read(STDIN_FILENO, &buffer, 4);
+    read(STDIN_FILENO, &buffer, 4);
     
     let key = buffer[0]
     let ascii: UInt32 = key > 0 ? UInt32(key) : 32 // = " "
@@ -194,25 +194,26 @@ func getChar(timeout: Double) -> Character {
     return Character(UnicodeScalar(ascii))
 }
 
+
 func play(board: Board, countdown: Double) -> Board {
     
     if board.wallCrash {
-        println("Wall crash!")
+        print("Wall crash!")
         exit(0)
     }
     
     if board.tailCrash {
-        println("Tail crash!")
+        print("Tail crash!")
         exit(0)
     }
     
-    println(board)
+    print(board)
     
     let dir: Direction
     switch getChar(countdown) {
-        case "a": dir = .Left
-        case "s": dir = .Right
-        default:  dir = .Forward
+    case "a": dir = .Left
+    case "s": dir = .Right
+    default:  dir = .Forward
     }
     
     return board.advanceSnake(dir)
@@ -224,8 +225,9 @@ let board = Board(snake: snake,
     orientation: .Right)
 
 // this stride represents the starting difficulty and ramp-up
-let countdown = stride(from: 700.0, through: 0.0, by: -0.5) 
+let countdown = stride(from: 700.0, through: 0.0, by: -0.5)
 
-println("A to turn left, S to turn right")
+print("A to turn left, S to turn right")
 
-reduce(countdown, board, play)
+countdown.reduce(board, combine: play)
+
