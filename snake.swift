@@ -42,8 +42,6 @@ enum Orientation {
     case Up, Down, Left, Right
 }
 
-typealias Movement = (Coord, Orientation)
-
 extension Orientation {
     var coord: Coord {
         switch self {
@@ -54,7 +52,7 @@ extension Orientation {
         }
     }
 
-    var movement: Movement { return (self.coord, self) }
+    var movement: (Coord, Orientation) { return (self.coord, self) }
     
     func move(direction: Direction) -> Orientation {
         switch (self, direction) {
