@@ -42,20 +42,28 @@ enum Orientation {
     case Up, Down, Left, Right
 }
 
-func move(o: Orientation, _ d: Direction) -> (Coord,Orientation) {
-    switch (o,d) {
-    case (.Up, .Forward):     return ([ 0,-1],.Up)
-    case (.Up, .Left):        return ([-1, 0],.Left)
-    case (.Up, .Right):       return ([ 1, 0],.Right)
-    case (.Down, .Forward):   return ([ 0, 1],.Down)
-    case (.Down, .Left):      return ([ 1, 0],.Right)
-    case (.Down, .Right):     return ([-1, 0],.Left)
-    case (.Left, .Forward):   return ([-1, 0],.Left)
-    case (.Left, .Left):      return ([ 0, 1],.Down)
-    case (.Left, .Right):     return ([ 0,-1],.Up)
-    case (.Right, .Forward):  return ([ 1, 0],.Right)
-    case (.Right, .Left):     return ([ 0,-1],.Up)
-    case (.Right, .Right):    return ([ 0, 1],.Down)
+typealias Movement = (Coord, Orientation)
+
+extension Orientation {
+    var coord: Coord {
+        switch self {
+        case .Up:    return [ 0,-1]
+        case .Down:  return [ 0, 1]
+        case .Left:  return [-1, 0]
+        case .Right: return [ 1, 0]
+        }
+    }
+
+    var movement: Movement { return (self.coord, self) }
+    
+    func move(direction: Direction) -> Orientation {
+        switch (self, direction) {
+        case (_, .Forward):                    return self
+        case (.Up, .Left), (.Down, .Right):    return .Left
+        case (.Down, .Left), (.Up, .Right):    return .Right
+        case (.Left, .Right), (.Right, .Left): return .Up
+        case (.Left, .Left), (.Right, .Right): return .Down
+        }
     }
 }
 
@@ -100,7 +108,7 @@ public struct Board {
 
 extension Board {
     func advanceSnake(d: Direction) -> Board {
-        let (delta,newOrientation) = move(o: orientation, d)
+        let (delta, newOrientation) = orientation.move(direction: d).movement
         let newLocation = headLocation + delta
         
         // grow the snake if it ate the apple
