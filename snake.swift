@@ -70,11 +70,14 @@ extension Orientation {
 public struct Snake {
     let tail: [Coord]
     let head: Coord
+    let orientation: Orientation
     let locations: [Coord]
 
-    init (head: Coord, tail: [Coord]) {
+    init (head: Coord, tail: [Coord], orientation: Orientation) {
         self.head = head
         self.tail = tail
+        self.orientation = orientation
+
         self.locations = [head] + tail.reduce([]) {
             segments, segment in segments + [(segments.last ?? head) - segment]
         }
@@ -82,24 +85,33 @@ public struct Snake {
 }
 
 extension Snake {
-    func grow(to: Coord) -> Snake {
-        return Snake(head: head + to, tail: [to] + tail)
+    func grow(_ d: Direction) -> Snake {
+        let (to, newOrientation) = orientation.move(direction: d).movement
+        return Snake(
+            head: head + to,
+            tail: [to] + tail,
+            orientation: newOrientation
+        )
     }
     
-    func wriggle(to: Coord) -> Snake {
-        return Snake(head: head + to, tail: [to] + tail.dropLast())
+    func wriggle(_ d: Direction) -> Snake {
+        let (to, newOrientation) = orientation.move(direction: d).movement
+        return Snake(
+            head: head + to,
+            tail: [to] + tail.dropLast(),
+            orientation: newOrientation
+        )
     }
 }
 
 public struct Board {
     let snake: Snake
-    let orientation: Orientation
+
     let appleLocation: Coord
     let size: Coord
     
-    init(snake: Snake, orientation: Orientation, appleLocation: Coord? = nil, size: Coord = [25,15]) {
+    init(snake: Snake, appleLocation: Coord? = nil, size: Coord = [25,15]) {
         self.snake = snake
-        self.orientation = orientation
         self.appleLocation =  appleLocation ?? [Int(arc4random()) % size.x, Int(arc4random()) % size.y]
         self.size = size
     }
@@ -107,23 +119,14 @@ public struct Board {
 
 extension Board {
     func advanceSnake(d: Direction) -> Board {
-        let (delta, newOrientation) = orientation.move(direction: d).movement
-        let newLocation = snake.head + delta
-        
+        let wriggledSnake = snake.wriggle(d)
+
+        let snakeAteApple = wriggledSnake.head == appleLocation
         // grow the snake if it ate the apple
-        let newSnake =
-        appleLocation == newLocation
-            ? snake.grow(to: delta)
-            : snake.wriggle(to: delta)
-        
-        let newAppleLocation: Coord? =
-        newLocation == appleLocation
-            ? nil
-            : appleLocation
-        
-        return Board(snake: newSnake,
-            orientation: newOrientation,
-            appleLocation: newAppleLocation)
+        let newSnake = snakeAteApple ? snake.grow(d) : wriggledSnake
+        let newAppleLocation = snakeAteApple ? nil : appleLocation
+
+        return Board(snake: newSnake, appleLocation: newAppleLocation)
     }
 }
 
@@ -199,7 +202,6 @@ func getChar(timeout: Double) -> Character {
     return Character(UnicodeScalar(ascii) ?? " ")
 }
 
-
 func play(board: Board, countdown: Double) -> Board {
     
     if board.wallCrash {
@@ -224,8 +226,8 @@ func play(board: Board, countdown: Double) -> Board {
     return board.advanceSnake(d: dir)
 }
 
-let snake = Snake(head: [2,2], tail: [[1,0], [1,0]])
-let board = Board(snake: snake, orientation: .Right)
+let snake = Snake(head: [2,2], tail: [[1,0], [1,0]], orientation: .Right)
+let board = Board(snake: snake)
 
 // this stride represents the starting difficulty and ramp-up
 let countdown = stride(from: 700.0, through: 0.0, by: -0.5)
@@ -233,4 +235,3 @@ let countdown = stride(from: 700.0, through: 0.0, by: -0.5)
 print("A to turn left, S to turn right")
 
 countdown.reduce(board, play)
-
