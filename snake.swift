@@ -8,7 +8,7 @@ struct Coord {
 }
 
 // ah, for TupleLiteralConvertible
-extension Coord: ArrayLiteralConvertible {
+extension Coord: ExpressibleByArrayLiteral {
     init(arrayLiteral elements: Int...) {
         precondition(elements.count == 2)
         x = elements[0]
@@ -69,7 +69,7 @@ extension Snake {
     }
     
     func wriggle(to: Coord) -> Snake {
-        let shrunkTail = tail.isEmpty ? [] : dropLast(tail)
+        let shrunkTail = tail.isEmpty ? [] : tail.dropLast()
         return Snake(tail: [to] + shrunkTail)
     }
 }
@@ -100,14 +100,14 @@ public struct Board {
 
 extension Board {
     func advanceSnake(d: Direction) -> Board {
-        let (delta,newOrientation) = move(orientation, d)
+        let (delta,newOrientation) = move(o: orientation, d)
         let newLocation = headLocation + delta
         
         // grow the snake if it ate the apple
         let newSnake =
         appleLocation == newLocation
-            ? snake.grow(delta)
-            : snake.wriggle(delta)
+            ? snake.grow(to: delta)
+            : snake.wriggle(to: delta)
         
         let newAppleLocation: Coord? =
         newLocation == appleLocation
@@ -139,20 +139,20 @@ extension Board: CustomStringConvertible {
             return "|\(String(line))|"
         }
         
-        let header = ["+" + String(count: self.size.x, repeatedValue: "-" as Character) + "+"]
-        return "\n".join(header + squares + header)
+        let header = ["+" + String(repeating: "-", count: self.size.x) + "+"]
+        return (header + squares + header).joined(separator: "\n")
     }
 }
 
 extension Board {
     var wallCrash: Bool {
-        let width: HalfOpenInterval = 0..<size.x
-        let height: HalfOpenInterval = 0..<size.y
+        let width: Range = 0..<size.x
+        let height: Range = 0..<size.y
         return !width.contains(headLocation.x) || !height.contains(headLocation.y)
     }
     
     var tailCrash: Bool {
-        return dropFirst(snakeLocations).contains(headLocation)
+        return snakeLocations.dropFirst().contains(headLocation)
     }
 }
 
@@ -191,7 +191,7 @@ func getChar(timeout: Double) -> Character {
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt)
     
     // I'm guessing there's a shorter way here:
-    return Character(UnicodeScalar(ascii))
+    return Character(UnicodeScalar(ascii) ?? " ")
 }
 
 
@@ -210,13 +210,13 @@ func play(board: Board, countdown: Double) -> Board {
     print(board)
     
     let dir: Direction
-    switch getChar(countdown) {
+    switch getChar(timeout: countdown) {
     case "a": dir = .Left
     case "s": dir = .Right
     default:  dir = .Forward
     }
     
-    return board.advanceSnake(dir)
+    return board.advanceSnake(d: dir)
 }
 
 let snake = Snake(tail: [[1,0],[1,0]])
@@ -229,5 +229,5 @@ let countdown = stride(from: 700.0, through: 0.0, by: -0.5)
 
 print("A to turn left, S to turn right")
 
-countdown.reduce(board, combine: play)
+countdown.reduce(board, play)
 
