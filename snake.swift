@@ -8,7 +8,7 @@ struct Coord {
 }
 
 // ah, for TupleLiteralConvertible
-extension Coord: ArrayLiteralConvertible {
+extension Coord: ExpressibleByArrayLiteral {
     init(arrayLiteral elements: Int...) {
         precondition(elements.count == 2)
         x = elements[0]
@@ -42,57 +42,74 @@ enum Orientation {
     case Up, Down, Left, Right
 }
 
-func move(o: Orientation, _ d: Direction) -> (Coord,Orientation) {
-    switch (o,d) {
-    case (.Up, .Forward):     return ([ 0,-1],.Up)
-    case (.Up, .Left):        return ([-1, 0],.Left)
-    case (.Up, .Right):       return ([ 1, 0],.Right)
-    case (.Down, .Forward):   return ([ 0, 1],.Down)
-    case (.Down, .Left):      return ([ 1, 0],.Right)
-    case (.Down, .Right):     return ([-1, 0],.Left)
-    case (.Left, .Forward):   return ([-1, 0],.Left)
-    case (.Left, .Left):      return ([ 0, 1],.Down)
-    case (.Left, .Right):     return ([ 0,-1],.Up)
-    case (.Right, .Forward):  return ([ 1, 0],.Right)
-    case (.Right, .Left):     return ([ 0,-1],.Up)
-    case (.Right, .Right):    return ([ 0, 1],.Down)
+extension Orientation {
+    var coord: Coord {
+        switch self {
+        case .Up:    return [ 0,-1]
+        case .Down:  return [ 0, 1]
+        case .Left:  return [-1, 0]
+        case .Right: return [ 1, 0]
+        }
+    }
+
+    var movement: (Coord, Orientation) { return (self.coord, self) }
+    
+    func move(direction: Direction) -> Orientation {
+        switch (self, direction) {
+        case (_, .Forward):                    return self
+        case (.Up, .Left), (.Down, .Right):    return .Left
+        case (.Down, .Left), (.Up, .Right):    return .Right
+        case (.Left, .Right), (.Right, .Left): return .Up
+        case (.Left, .Left), (.Right, .Right): return .Down
+        }
     }
 }
 
 public struct Snake {
     let tail: [Coord]
+    let head: Coord
+    let orientation: Orientation
+    let locations: [Coord]
+
+    init (head: Coord, tail: [Coord], orientation: Orientation) {
+        self.head = head
+        self.tail = tail
+        self.orientation = orientation
+
+        self.locations = [head] + tail.reduce([]) {
+            segments, segment in segments + [(segments.last ?? head) - segment]
+        }
+    }
 }
 
 extension Snake {
-    func grow(to: Coord) -> Snake {
-        return Snake(tail: [to] + tail)
+    func grow(_ d: Direction) -> Snake {
+        let (to, newOrientation) = orientation.move(direction: d).movement
+        return Snake(
+            head: head + to,
+            tail: [to] + tail,
+            orientation: newOrientation
+        )
     }
     
-    func wriggle(to: Coord) -> Snake {
-        let shrunkTail = tail.isEmpty ? [] : dropLast(tail)
-        return Snake(tail: [to] + shrunkTail)
+    func wriggle(_ d: Direction) -> Snake {
+        let (to, newOrientation) = orientation.move(direction: d).movement
+        return Snake(
+            head: head + to,
+            tail: [to] + tail.dropLast(),
+            orientation: newOrientation
+        )
     }
 }
 
-
 public struct Board {
     let snake: Snake
-    let headLocation: Coord
-    let orientation: Orientation
+
     let appleLocation: Coord
     let size: Coord
     
-    var snakeLocations: [Coord] {
-        // recomputing this every time is horribly ineffecient
-        return snake.tail.reduce([headLocation]) { (snake, segment) in
-            return snake + [snake.last! - segment]
-        }
-    }
-    
-    init(snake: Snake, headLocation: Coord, orientation: Orientation, appleLocation: Coord? = nil, size: Coord = [25,15]) {
+    init(snake: Snake, appleLocation: Coord? = nil, size: Coord = [25,15]) {
         self.snake = snake
-        self.headLocation = headLocation
-        self.orientation = orientation
         self.appleLocation =  appleLocation ?? [Int(arc4random()) % size.x, Int(arc4random()) % size.y]
         self.size = size
     }
@@ -100,33 +117,22 @@ public struct Board {
 
 extension Board {
     func advanceSnake(d: Direction) -> Board {
-        let (delta,newOrientation) = move(orientation, d)
-        let newLocation = headLocation + delta
-        
+        let wriggledSnake = snake.wriggle(d)
+
+        let snakeAteApple = wriggledSnake.head == appleLocation
         // grow the snake if it ate the apple
-        let newSnake =
-        appleLocation == newLocation
-            ? snake.grow(delta)
-            : snake.wriggle(delta)
-        
-        let newAppleLocation: Coord? =
-        newLocation == appleLocation
-            ? nil
-            : appleLocation
-        
-        return Board(snake: newSnake,
-            headLocation: newLocation,
-            orientation: newOrientation,
-            appleLocation: newAppleLocation)
+        let newSnake = snakeAteApple ? snake.grow(d) : wriggledSnake
+        let newAppleLocation = snakeAteApple ? nil : appleLocation
+
+        return Board(snake: newSnake, appleLocation: newAppleLocation)
     }
 }
 
 extension Board: CustomStringConvertible {
     public var description: String {
-        let snakeLocations = self.snakeLocations
         let fillSquare = { (square: Coord) -> Character in
             switch square {
-            case snakeLocations: return "*"
+            case self.snake.locations: return "*"
             case self.appleLocation: return ""
             default: return " "
             }
@@ -139,20 +145,20 @@ extension Board: CustomStringConvertible {
             return "|\(String(line))|"
         }
         
-        let header = ["+" + String(count: self.size.x, repeatedValue: "-" as Character) + "+"]
-        return "\n".join(header + squares + header)
+        let header = ["+" + String(repeating: "-", count: self.size.x) + "+"]
+        return (header + squares + header).joined(separator: "\n")
     }
 }
 
 extension Board {
     var wallCrash: Bool {
-        let width: HalfOpenInterval = 0..<size.x
-        let height: HalfOpenInterval = 0..<size.y
-        return !width.contains(headLocation.x) || !height.contains(headLocation.y)
+        let width: Range = 0..<size.x
+        let height: Range = 0..<size.y
+        return !width.contains(snake.head.x) || !height.contains(snake.head.y)
     }
     
     var tailCrash: Bool {
-        return dropFirst(snakeLocations).contains(headLocation)
+        return snake.locations.dropFirst().contains(snake.head)
     }
 }
 
@@ -191,9 +197,8 @@ func getChar(timeout: Double) -> Character {
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt)
     
     // I'm guessing there's a shorter way here:
-    return Character(UnicodeScalar(ascii))
+    return Character(UnicodeScalar(ascii) ?? " ")
 }
-
 
 func play(board: Board, countdown: Double) -> Board {
     
@@ -210,24 +215,21 @@ func play(board: Board, countdown: Double) -> Board {
     print(board)
     
     let dir: Direction
-    switch getChar(countdown) {
+    switch getChar(timeout: countdown) {
     case "a": dir = .Left
     case "s": dir = .Right
     default:  dir = .Forward
     }
     
-    return board.advanceSnake(dir)
+    return board.advanceSnake(d: dir)
 }
 
-let snake = Snake(tail: [[1,0],[1,0]])
-let board = Board(snake: snake,
-    headLocation: [2,2],
-    orientation: .Right)
+let snake = Snake(head: [2,2], tail: [[1,0], [1,0]], orientation: .Right)
+let board = Board(snake: snake)
 
 // this stride represents the starting difficulty and ramp-up
 let countdown = stride(from: 700.0, through: 0.0, by: -0.5)
 
 print("A to turn left, S to turn right")
 
-countdown.reduce(board, combine: play)
-
+countdown.reduce(board, play)
