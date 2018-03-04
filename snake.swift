@@ -1,4 +1,5 @@
-// RUN ME IN A TERMINAL WINDOW
+#!/usr/bin/swift
+// RUN `./snake.swift` IN A TERMINAL WINDOW
 
 import Darwin
 
@@ -8,7 +9,7 @@ struct Coord {
 }
 
 // ah, for TupleLiteralConvertible
-extension Coord: ArrayLiteralConvertible {
+extension Coord: ExpressibleByArrayLiteral {
     init(arrayLiteral elements: Int...) {
         precondition(elements.count == 2)
         x = elements[0]
@@ -42,7 +43,7 @@ enum Orientation {
     case Up, Down, Left, Right
 }
 
-func move(o: Orientation, _ d: Direction) -> (Coord,Orientation) {
+func move(_ o: Orientation, _ d: Direction) -> (Coord,Orientation) {
     switch (o,d) {
     case (.Up, .Forward):     return ([ 0,-1],.Up)
     case (.Up, .Left):        return ([-1, 0],.Left)
@@ -64,12 +65,12 @@ public struct Snake {
 }
 
 extension Snake {
-    func grow(to: Coord) -> Snake {
+    func grow(_ to: Coord) -> Snake {
         return Snake(tail: [to] + tail)
     }
     
-    func wriggle(to: Coord) -> Snake {
-        let shrunkTail = tail.isEmpty ? [] : dropLast(tail)
+    func wriggle(_ to: Coord) -> Snake {
+        let shrunkTail = tail.isEmpty ? [] : tail.dropLast()
         return Snake(tail: [to] + shrunkTail)
     }
 }
@@ -99,7 +100,7 @@ public struct Board {
 }
 
 extension Board {
-    func advanceSnake(d: Direction) -> Board {
+    func advanceSnake(_ d: Direction) -> Board {
         let (delta,newOrientation) = move(orientation, d)
         let newLocation = headLocation + delta
         
@@ -139,24 +140,24 @@ extension Board: CustomStringConvertible {
             return "|\(String(line))|"
         }
         
-        let header = ["+" + String(count: self.size.x, repeatedValue: "-" as Character) + "+"]
-        return "\n".join(header + squares + header)
+        let header = ["+" + String(repeating: "-" as Character, count: self.size.x) + "+"]
+        return (header + squares + header).joined(separator: "\n")
     }
 }
 
 extension Board {
     var wallCrash: Bool {
-        let width: HalfOpenInterval = 0..<size.x
-        let height: HalfOpenInterval = 0..<size.y
+        let width: Range = 0..<size.x
+        let height: Range = 0..<size.y
         return !width.contains(headLocation.x) || !height.contains(headLocation.y)
     }
     
     var tailCrash: Bool {
-        return dropFirst(snakeLocations).contains(headLocation)
+        return snakeLocations.dropFirst().contains(headLocation)
     }
 }
 
-func getChar(timeout: Double) -> Character {
+func getChar(_ timeout: Double) -> Character {
     // OK so maybe this particular function isn't so immutable
     
     assert(timeout < (Double(UInt8.max) * 100), "timeout too long")
@@ -191,7 +192,7 @@ func getChar(timeout: Double) -> Character {
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt)
     
     // I'm guessing there's a shorter way here:
-    return Character(UnicodeScalar(ascii))
+    return Character(UnicodeScalar(ascii)!)
 }
 
 
@@ -229,5 +230,5 @@ let countdown = stride(from: 700.0, through: 0.0, by: -0.5)
 
 print("A to turn left, S to turn right")
 
-countdown.reduce(board, combine: play)
+_ = countdown.reduce(board, play)
 
