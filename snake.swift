@@ -69,7 +69,7 @@ extension Snake {
     }
     
     func wriggle(to: Coord) -> Snake {
-        let shrunkTail = tail.isEmpty ? [] : dropLast(tail)
+        let shrunkTail = tail.isEmpty ? [] : tail.dropLast()
         return Snake(tail: [to] + shrunkTail)
     }
 }
@@ -100,24 +100,24 @@ public struct Board {
 
 extension Board {
     func advanceSnake(d: Direction) -> Board {
-        let (delta,newOrientation) = move(orientation, d)
+        let (delta,newOrientation) = move(o: orientation, d)
         let newLocation = headLocation + delta
         
         // grow the snake if it ate the apple
         let newSnake =
-        appleLocation == newLocation
-            ? snake.grow(delta)
-            : snake.wriggle(delta)
+            appleLocation == newLocation
+                ? snake.grow(to: delta)
+                : snake.wriggle(to: delta)
         
         let newAppleLocation: Coord? =
-        newLocation == appleLocation
-            ? nil
-            : appleLocation
+            newLocation == appleLocation
+                ? nil
+                : appleLocation
         
         return Board(snake: newSnake,
-            headLocation: newLocation,
-            orientation: newOrientation,
-            appleLocation: newAppleLocation)
+                     headLocation: newLocation,
+                     orientation: newOrientation,
+                     appleLocation: newAppleLocation)
     }
 }
 
@@ -139,20 +139,20 @@ extension Board: CustomStringConvertible {
             return "|\(String(line))|"
         }
         
-        let header = ["+" + String(count: self.size.x, repeatedValue: "-" as Character) + "+"]
-        return "\n".join(header + squares + header)
+        let header = ["+" + String(repeating: "-", count: self.size.x) + "+"]
+        return "\n" + (header + squares + header).joined()
     }
 }
 
 extension Board {
     var wallCrash: Bool {
-        let width: HalfOpenInterval = 0..<size.x
-        let height: HalfOpenInterval = 0..<size.y
+        let width = 0..<size.x
+        let height = 0..<size.y
         return !width.contains(headLocation.x) || !height.contains(headLocation.y)
     }
     
     var tailCrash: Bool {
-        return dropFirst(snakeLocations).contains(headLocation)
+        return snakeLocations.dropFirst().contains(headLocation)
     }
 }
 
@@ -162,9 +162,9 @@ func getChar(timeout: Double) -> Character {
     assert(timeout < (Double(UInt8.max) * 100), "timeout too long")
     
     var oldt: termios = termios(c_iflag: 0, c_oflag: 0, c_cflag: 0, c_lflag: 0,
-        c_cc: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            cc_t(2), 0, 0, 0),
-        c_ispeed: 0, c_ospeed: 0)
+                                c_cc: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                       cc_t(2), 0, 0, 0),
+                                c_ispeed: 0, c_ospeed: 0)
     
     tcgetattr(STDIN_FILENO, &oldt)
     
@@ -191,12 +191,11 @@ func getChar(timeout: Double) -> Character {
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt)
     
     // I'm guessing there's a shorter way here:
-    return Character(UnicodeScalar(ascii))
+    return Character(UnicodeScalar(ascii)!)
 }
 
 
 func play(board: Board, countdown: Double) -> Board {
-    
     if board.wallCrash {
         print("Wall crash!")
         exit(0)
@@ -210,24 +209,24 @@ func play(board: Board, countdown: Double) -> Board {
     print(board)
     
     let dir: Direction
-    switch getChar(countdown) {
+    switch getChar(timeout: countdown) {
     case "a": dir = .Left
     case "s": dir = .Right
     default:  dir = .Forward
     }
     
-    return board.advanceSnake(dir)
+    return board.advanceSnake(d: dir)
 }
 
 let snake = Snake(tail: [[1,0],[1,0]])
 let board = Board(snake: snake,
-    headLocation: [2,2],
-    orientation: .Right)
+                  headLocation: [2,2],
+                  orientation: .Right)
 
 // this stride represents the starting difficulty and ramp-up
 let countdown = stride(from: 700.0, through: 0.0, by: -0.5)
 
 print("A to turn left, S to turn right")
 
-countdown.reduce(board, combine: play)
+countdown.reduce(board, play)
 
